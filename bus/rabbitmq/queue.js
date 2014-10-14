@@ -55,7 +55,6 @@ function Queue (options) {
       self.log('asserting queue ' + self.queueName);
       self.listenChannel.assertQueue(self.queueName, self.queueOptions)
       .then(function (_qok) {
-              console.log(self.exchangeName)
         if (self.exchangeName) {
             self.listenChannel.bindQueue(self.queueName, self.exchangeName, self.routingKey || self.queueName);
         }
