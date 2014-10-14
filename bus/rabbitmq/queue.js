@@ -6,6 +6,7 @@ var util = require('util');
 function Queue (options) {
   var options = options || {};
   var queueOptions = options.queueOptions || {};
+    var exchangeOptions = options.exchangeOptions || {};
 
   extend(queueOptions, {
     autoDelete: ! (options.ack || options.acknowledge),
@@ -13,6 +14,12 @@ function Queue (options) {
     durable: Boolean(options.ack || options.acknowledge),
     exclusive: options.exclusive || false,
     persistent: Boolean(options.ack || options.acknowledge || options.persistent)
+  });
+
+  extend(exchangeOptions, {
+    type: exchangeOptions.type || 'topic',
+    durable: exchangeOptions.durable === false ? false : true,
+    autoDelete: exchangeOptions.autoDelete || false
   });
 
   this.ack = (options.ack || options.acknowledge);
@@ -25,6 +32,8 @@ function Queue (options) {
   this.queueName = options.queueName;
   this.queueOptions = queueOptions;
   this.rejected = {};
+  this.exchangeName = options.exchangeName;
+  this.exchangeOptions = exchangeOptions;
   this.routingKey = options.routingKey;
   this.sendChannel = options.sendChannel;
 
@@ -33,11 +42,23 @@ function Queue (options) {
   var self = this;
 
   this.initialized = Promise.all([
+    new Promise(function (resolve, reject) {
+      if (self.exchangeName) {
+        self.sendChannel.assertExchange(self.exchangeName, self.exchangeOptions.type || 'topic', self.exchangeOptions);
+        resolve();
+      } else {
+        resolve();
+      }
+    }),
     // we're initialized when our queues are bound
     new Promise(function (resolve, reject) {
       self.log('asserting queue ' + self.queueName);
       self.listenChannel.assertQueue(self.queueName, self.queueOptions)
       .then(function (_qok) {
+              console.log(self.exchangeName)
+        if (self.exchangeName) {
+            self.listenChannel.bindQueue(self.queueName, self.exchangeName, self.routingKey || self.queueName);
+        }
         resolve();
       });
     }),
